@@ -4,13 +4,13 @@ Slim builds are the default. Debug builds retain optional profiling; native comp
 dumps default to off (`NativeComparisonSaves=0`) because they cause extra hitches.
 The silent autosave symbol appears in the top-right while saving, with an "Autosaving…"
 caption, and disappears on completion. The icon is 150×150 at 1440p and scales with screen height.
-Version 1.6.8 still needs runtime testing of the new icon.
+The user has confirmed BepInEx 791 works and the icon placement looks correct.
 
 ## Install (Windows, Linux/Proton, Steam Deck)
 Requires the Windows version of **Disco Elysium: The Final Cut**; native macOS is not supported.
 
 1. Close the game and back up your saves. In Steam, use **Manage → Browse local files** to find the folder containing `disco.exe`.
-2. Download **BepInEx Unity IL2CPP, Windows x64, build 755** from the [official builds page](https://builds.bepinex.dev/projects/bepinex_be). This is the verified loader version; newer builds are not yet verified. Extract it beside `disco.exe`, not into a subfolder. Back up an existing loader before replacing it.
+2. Download **BepInEx Unity IL2CPP, Windows x64, build 791** from the [official builds page](https://builds.bepinex.dev/projects/bepinex_be). This version is user-confirmed working. Extract it beside `disco.exe`, not into a subfolder. Back up an existing loader before replacing it.
 3. **Linux/Steam Deck:** use Proton and set Steam launch options to `WINEDLLOVERRIDES="winhttp=n,b" %command%`. Install files in Desktop Mode on Steam Deck. Windows needs no launch option.
 4. Launch the game once to initialize BepInEx (the first launch can take longer), then close it.
 5. Copy the release `DiscoAutosave.dll` into `BepInEx/plugins/DiscoAutosave/`, creating the folder if needed. Use `artifacts/release/DiscoAutosave.dll` from a release build; the source checkout alone is not an installable mod. Disable the original Disco QoL mod.
@@ -40,7 +40,7 @@ instead of recursively exporting unchanged conversations. Unsupported version
 semantics retain full traversal. Previous runtime logs confirm cache reuse and paired
 GC relocation; broader lifecycle correctness remains unverified.
 
-Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 755.
+Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 791.
 
 ## Controls
 - **F8:** autosave interval (1–30 minutes), area-change triggers, camera/party
@@ -79,7 +79,7 @@ Set `DeferForcedGarbageCollection = false` to restore native save-tail GC.
 Camera smoothing changes party animation timing during exploration, not movement speed.
 
 Previous desktop measurements showed roughly 16–17 ms warm capture, with higher
-cold-capture costs. Steam Deck performance and the new icon require runtime testing.
+cold-capture costs. Steam Deck performance still requires runtime testing.
 The snapshot buffer is preallocated/reused across threads, scalar copying uses fewer
 capacity checks, and thumbnail encoding/final preparation run before the capture frame.
 Record/JSON internals now measure broadcast/receiver costs, all 14 world persisters,
