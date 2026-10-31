@@ -14,9 +14,9 @@ using NotificationSystem;
 namespace DiscoAutosave;
 
 #if DISCO_DIAGNOSTICS
-[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.7-debug.3")]
+[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.8-debug.1")]
 #else
-[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.7")]
+[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.8")]
 #endif
 public sealed class Plugin : BasePlugin
 {
@@ -83,7 +83,7 @@ public sealed class Plugin : BasePlugin
         BuildLog.Info(Log, "Dialogue block cache: native collection overwrite-version checks " +
             (LuaSnapshotReader.CacheSupported ? "passed; enabled." : "failed; full traversal retained."));
 #if DISCO_DIAGNOSTICS
-        NativeSaveDump.Install(Config.Bind("Diagnostics", "NativeComparisonSaves", 3,
+        NativeSaveDump.Install(Config.Bind("Diagnostics", "NativeComparisonSaves", 0,
             new ConfigDescription("Number of saves per session with same-frame native comparison dumps. Causes extra hitches and writes full save data under BepInEx/DiscoAutosave-comparisons. 0 disables.",
                 new AcceptableValueRange<int>(0, 20))), Log);
         SaveDiagnostics.Install(harmony, Log);
@@ -103,7 +103,13 @@ public sealed class Plugin : BasePlugin
         BuildLog.Info(Log, "Autosave loaded. F8: settings. Top-left main-menu hover control hidden; Esc still opens the menu.");
     }
 
-    private static bool QuietAutosave(NotificationType notificationType) => notificationType != NotificationType.AutosaveComplete;
+    private static bool QuietAutosave(NotificationType notificationType)
+    {
+        if (notificationType != NotificationType.AutosaveComplete) return true;
+        try { AutosaveIndicator.Show(); }
+        catch (Exception error) { Instance.Log.LogWarning("Autosave indicator unavailable: " + error.Message); }
+        return false;
+    }
 
     private bool SafeForSnapshot()
     {
@@ -138,6 +144,7 @@ public sealed class Plugin : BasePlugin
     private static void ResetSession()
     {
         Instance.schedule.Reset();
+        AutosaveIndicator.Hide();
         Instance.smoothMotion.Restore();
         Instance.threaded.InvalidateCapture();
         Instance.threaded.ClearDialogueCache();
@@ -251,6 +258,7 @@ public sealed class Plugin : BasePlugin
         SaveDiagnostics.Tick();
 #endif
         ApplyFpsLimit();
+        AutosaveIndicator.Tick();
         if (Input.GetKeyDown(KeyCode.F8) || (menuVisible && Input.GetKeyDown(KeyCode.Escape))) ToggleMenu();
         try { threaded.Poll(threaded.ReadyToAdvance && SafeForSnapshot()); }
         catch (Exception error)
@@ -277,48 +285,21 @@ public sealed class Plugin : BasePlugin
                 return;
             }
 
-            var persistence = SingletonComponent<SunshinePersistence>.Singleton;
-            var world = SingletonComponent<World>.Singleton;
-            var party = Party.Player;
-            var player = party ? party.Main : null;
-            var app = SingletonScriptable<ApplicationManager>.Singleton;
-            if (!persistence || !world || !app || player == null || !player || !world._isRunning || !app.IsGameArea)
-            {
-                schedule.Wait();
-                return;
-            }
-            if (persistence.IsLoading || SunshinePersistence.LoadingInitialized || World.IsLoadingLevel ||
-                !SceneTransitionManager.IsReady || SceneTransitionManager.IsQuitting || !AreaManager.isReady ||
-                Time.timeScale <= 0f || (int)ViewsPagesBridge.Current != 2 ||
-                (DialogueManager.hasInstance && DialogueManager.isConversationActive) ||
-                player.IsDestinationSetBySequence || player.movementCommandLock)
+            if (!SafeForSnapshot())
             {
                 schedule.Wait();
                 return;
             }
 
+            var persistence = SingletonComponent<SunshinePersistence>.Singleton;
+            var app = SingletonScriptable<ApplicationManager>.Singleton;
             schedule.Advance(Time.unscaledDeltaTime, true);
             if (!schedule.Due(minutes.Value, app.CurrentSceneProperties?.SceneId ?? "", Time.realtimeSinceStartup, true) ||
                 SunshinePersistence.saveCoroutine != null ||
                 !SunshinePersistence.CanSave()) return;
-            foreach (var sequence in UnityEngine.Object.FindObjectsOfType<Sequencer>())
-                if (sequence && sequence.gameObject.activeInHierarchy && sequence.isPlaying) return;
+            if (SaveSceneObjects.HasPlayingSequence()) return;
 
-            callback = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>((System.Action)(() =>
-            {
-                inFlight = false;
-                try
-                {
-                    threaded.CheckWrittenSave();
-                    schedule.Reset();
-                    BuildLog.Info(Log, "Autosave written.");
-                }
-                catch (Exception error)
-                {
-                    stopped = true;
-                    Log.LogError($"Autosave verification failed; stopped until restart: {error}");
-                }
-            }));
+            callback ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>((System.Action)AutosaveCompleted);
             if (callback == null) throw new InvalidOperationException("Cannot create autosave callback.");
             startedAt = Time.realtimeSinceStartup;
             inFlight = true;
@@ -334,6 +315,22 @@ public sealed class Plugin : BasePlugin
                 warned = true;
                 Log.LogError($"Autosave stopped until game restart: {error}");
             }
+        }
+    }
+
+    private void AutosaveCompleted()
+    {
+        inFlight = false;
+        try
+        {
+            threaded.CheckWrittenSave();
+            schedule.Reset();
+            BuildLog.Info(Log, "Autosave written.");
+        }
+        catch (Exception error)
+        {
+            stopped = true;
+            Log.LogError($"Autosave verification failed; stopped until restart: {error}");
         }
     }
 }

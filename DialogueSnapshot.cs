@@ -21,13 +21,13 @@ internal sealed class DialogueSnapshot
         {
             if (!cachePrepared)
             {
-                var warm = Stopwatch.StartNew();
+                long warm = Stopwatch.GetTimestamp();
 #if DISCO_DIAGNOSTICS
                 SaveDiagnostics.RestartStage();
 #endif
                 cachePrepared = reader.WarmConversation(GetTable("Conversation"),
                     Math.Clamp(UnityEngine.Time.unscaledDeltaTime * 200.0, 1.0, 5.0));
-                double warmMs = warm.Elapsed.TotalMilliseconds;
+                double warmMs = ElapsedMs(warm);
                 totalMs += warmMs;
                 maxSliceMs = Math.Max(maxSliceMs, warmMs);
                 frames++;
@@ -41,7 +41,7 @@ internal sealed class DialogueSnapshot
             .Cast<PersistentDataManager._PrepSimStatusForRawDataAsync_d__67>();
         int previousBatch = PersistentDataManager.asyncDialogueEntryBatchSize;
         double budgetMs = Math.Clamp(UnityEngine.Time.unscaledDeltaTime * 200.0, 1.0, 5.0);
-        var timer = Stopwatch.StartNew();
+        long timer = Stopwatch.GetTimestamp();
         try
         {
             PersistentDataManager.asyncDialogueEntryBatchSize = 16;
@@ -54,11 +54,11 @@ internal sealed class DialogueSnapshot
                     prepared = true;
                     break;
                 }
-                if (timer.Elapsed.TotalMilliseconds >= budgetMs) break;
+                if (ElapsedMs(timer) >= budgetMs) break;
             }
         }
         finally { PersistentDataManager.asyncDialogueEntryBatchSize = previousBatch; }
-        double elapsed = timer.Elapsed.TotalMilliseconds;
+        double elapsed = ElapsedMs(timer);
         totalMs += elapsed;
         maxSliceMs = Math.Max(maxSliceMs, elapsed);
         frames++;
@@ -127,6 +127,8 @@ internal sealed class DialogueSnapshot
     }
 
     internal void ClearCache() => reader.ClearCache();
+
+    private static double ElapsedMs(long start) => (Stopwatch.GetTimestamp() - start) * 1000.0 / Stopwatch.Frequency;
 
     private static LuaTable GetTable(string name) => Lua.Run("return " + name).AsTable.luaTable;
 }

@@ -1,23 +1,19 @@
-# Disco Autosave 1.6.7
+# Disco Autosave 1.6.8
 
-**Installed, SHA-256 verified:** v1.6.7-debug.1 adds same-frame native comparison dumps,
-transition child/ready-handler timings and optimized exploration quicksaves.
-The first three debug saves write full save data to
-`BepInEx/DiscoAutosave-comparisons/<capture>/` (`native.zip`, `optimized.zip`,
-`comparison.json`). `[Diagnostics] NativeComparisonSaves=0` disables this;
-comparison captures intentionally cause additional hitches. Release contains none
-of this diagnostic code. These new runtime paths remain unverified.
+Slim builds are the default. Debug builds retain optional profiling; native comparison
+dumps default to off (`NativeComparisonSaves=0`) because they cause extra hitches.
+The autosave completion symbol appears silently in the top-right for two seconds.
+Version 1.6.8 is not yet runtime-tested or installed.
 
-**Retained from v1.6.6:** removes normal per-save receiver/sequence discovery
-scans using scene-load, clone and AddComponent tracking. Inactive/disabled objects
+Per-save receiver/sequence discovery uses scene-load, clone and AddComponent
+tracking. Inactive/disabled objects
 remain registered; current activity is checked at save time. Destroyed objects are
 pruned and receiver dispatch uses an ordered snapshot. Failed tracking retains the
 previous discovery/safety scans. One bootstrap scan normally runs on scene load.
 
 `python3 build.py release` builds the slim DLL with profiling and routine info logs
 compiled out; warnings/errors remain. `build.py debug`
-retains profiling/logs and remains installed until runtime gains are confirmed.
-Direct builds use `-p:SaveDiagnostics=false -p:SaveLogging=false` for the slim mode.
+retains profiling/logs. Direct builds also default to slim mode.
 
 GC collects at the loading-screen lifecycle boundary,
 before its hide/fade-out coroutine starts. No background-image/alpha checks.
@@ -28,8 +24,7 @@ Conversation blocks are cached during sliced preparation. Final capture validate
 native collection versions and mutable scalar fields before copying cached bytes,
 instead of recursively exporting unchanged conversations. Unsupported version
 semantics retain full traversal. Previous runtime logs confirm cache reuse and paired
-GC relocation; broader lifecycle correctness remains unverified. Full diagnostics
-remain enabled.
+GC relocation; broader lifecycle correctness remains unverified.
 
 Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 755.
 
@@ -37,7 +32,7 @@ Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 755
 - **F8:** autosave interval (1–30 minutes), area-change triggers, camera/party
   smoothing, VSync override and integer FPS cap (0 = unlimited).
 - FPS cap requires VSync off; external limits still apply.
-- Autosave icon/sound and the top-left menu control are hidden. Esc still works;
+- Autosave uses a small, silent top-right icon; the top-left menu control is hidden. Esc still works;
   quicksave/error notifications and controller hints are unchanged.
 
 ## Saving
@@ -64,20 +59,15 @@ Forced save-tail GC is skipped for this mod's save iterator; automatic GC remain
 Set `DeferForcedGarbageCollection = false` to restore native save-tail GC.
 Camera smoothing changes party animation timing during exploration, not movement speed.
 
-**Installed:** diagnostic v1.6.7-debug.1; not launched after installation. Latest
-authorized log check of v1.6.6-debug.1 found four
-successful autosaves, capture 41.9 ms cold and 16.3–17.0 ms warm, and six paired
-loading-screen GC collections/suppressions. The user reports a successful
-save/reload smoke test; exhaustive restored-state equivalence remains untested.
+Previous desktop measurements showed roughly 16–17 ms warm capture, with higher
+cold-capture costs. Steam Deck performance and the new icon require runtime testing.
 The snapshot buffer is preallocated/reused across threads, scalar copying uses fewer
 capacity checks, and thumbnail encoding/final preparation run before the capture frame.
 Record/JSON internals now measure broadcast/receiver costs, all 14 world persisters,
 and preload/world JSON tree construction versus printing separately.
 Final live-state capture is still synchronous; zero stalls are not guaranteed.
-Full profiling is back on, including save origins/modes and GC caller contexts.
-Keep diagnostics enabled until the issue is resolved and the user approves removal.
-Default builds now include diagnostics; explicit `python3 build.py release` omits them.
-Wait 15 seconds after the last test save before requesting a log check.
+Debug profiling includes save origins/modes and GC caller contexts through existing hooks.
+When profiling, wait 15 seconds after the last test save before requesting a log check.
 
 ## Build and check
 ```sh
@@ -101,6 +91,5 @@ Install `bin/Release/net6.0/DiscoAutosave.dll` into game
 `BepInEx/config/local.disco.autosave.cfg`. Old experimental keys are ignored.
 Keep the original Disco QoL mod disabled.
 
-Agent notes: [HANDOFF.md](HANDOFF.md). Archived diagnostics:
-[reference/validation-v1.5/](reference/validation-v1.5/README.md).
+Older implementations and development history are retained in git, not source copies.
 Persistent rollback instructions: `/path/to/local-data`.

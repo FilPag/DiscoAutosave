@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <SaveDiagnostics Condition="'$(SaveDiagnostics)' == ''">true</SaveDiagnostics>
+    <SaveDiagnostics Condition="'$(SaveDiagnostics)' == ''">false</SaveDiagnostics>
     <SaveLogging Condition="'$(SaveLogging)' == ''">$(SaveDiagnostics)</SaveLogging>
     <GameDir>/path/to/Disco Elysium</GameDir>
   </PropertyGroup>
@@ -16,7 +16,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
-    <Compile Remove="reference/**/*.cs" />
     <Compile Remove="diagnostics/**/*.cs" Condition="'$(SaveDiagnostics)' != 'true'" />
     <Reference Include="$(GameDir)/BepInEx/core/*.dll" Private="false" />
     <Reference Include="$(GameDir)/BepInEx/interop/*.dll" Private="false" />

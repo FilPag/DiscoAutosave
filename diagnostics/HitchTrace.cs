@@ -138,7 +138,7 @@ internal static class HitchTrace
         var path = Path.Combine(directory, $"{session}-save-{number}.json");
         var report = new
         {
-            Version = "1.6.7-debug.3", Save = number, current.Kind, current.Status, StartedUtc = current.Utc,
+            Version = "1.6.8-debug.1", Save = number, current.Kind, current.Status, StartedUtc = current.Utc,
             CompletedMs = current.Completed == 0 ? (double?)null : Ms(current.Completed - current.Start),
             TailTruncated = truncated, MainThread = mainThread,
             RuntimeGcProviderEnabled = gc?.ProviderEnabled ?? false,
