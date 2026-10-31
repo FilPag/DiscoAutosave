@@ -14,9 +14,9 @@ using NotificationSystem;
 namespace DiscoAutosave;
 
 #if DISCO_DIAGNOSTICS
-[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.8-debug.1")]
+[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.9-debug.1")]
 #else
-[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.8")]
+[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.9")]
 #endif
 public sealed class Plugin : BasePlugin
 {
@@ -57,7 +57,7 @@ public sealed class Plugin : BasePlugin
         Instance = this;
         enabled = Config.Bind("Autosave", "Enabled", true);
         minutes = Config.Bind("Autosave", "IntervalMinutes", 5,
-            new ConfigDescription("Minutes of active exploration between native autosaves.",
+            new ConfigDescription("Minutes of gameplay, including dialogue, between autosaves. Saving waits until dialogue ends.",
                 new AcceptableValueRange<int>(1, 30)));
         afterEntry = Config.Bind("Autosave", "AfterBuildingEntry", true);
         afterExit = Config.Bind("Autosave", "AfterBuildingExit", true);
@@ -111,20 +111,22 @@ public sealed class Plugin : BasePlugin
 
     private static bool QuietAutosave(NotificationType notificationType) => notificationType != NotificationType.AutosaveComplete;
 
-    private bool SafeForSnapshot()
+    private bool SafeForSnapshot(bool countDialogue = false)
     {
         var persistence = SingletonComponent<SunshinePersistence>.Singleton;
         var world = SingletonComponent<World>.Singleton;
         var app = SingletonScriptable<ApplicationManager>.Singleton;
         var party = Party.Player;
         var player = party ? party.Main : null;
+        bool dialogueActive = DialogueManager.hasInstance && DialogueManager.isConversationActive;
         return !menuVisible && persistence && !persistence.IsLoading &&
             !SunshinePersistence.LoadingInitialized && !World.IsLoadingLevel &&
             world && world._isRunning && app && app.IsGameArea && player != null && player &&
             SceneTransitionManager.IsReady && !SceneTransitionManager.IsQuitting && AreaManager.isReady &&
-            Time.timeScale > 0f && (int)ViewsPagesBridge.Current == 2 &&
-            !(DialogueManager.hasInstance && DialogueManager.isConversationActive) &&
-            !player.IsDestinationSetBySequence && !player.movementCommandLock;
+            Time.timeScale > 0f &&
+            ((countDialogue && dialogueActive) ||
+             ((int)ViewsPagesBridge.Current == 2 && !dialogueActive &&
+              !player.IsDestinationSetBySequence && !player.movementCommandLock));
     }
 
     private static void HideMainMenuCorner(HudMainMenuButtonTrigger __instance)
@@ -227,7 +229,7 @@ public sealed class Plugin : BasePlugin
         GUI.Box(panel, "Disco Autosave — Settings");
         GUI.Label(new Rect(x + 20, y + 48, 400, 28), "AUTOSAVE");
         enabled.Value = GUI.Toggle(new Rect(x + 20, y + 80, 400, 28), enabled.Value, "Enable autosave");
-        GUI.Label(new Rect(x + 20, y + 118, 260, 28), $"Every {minutes.Value} minute(s) of exploration");
+        GUI.Label(new Rect(x + 20, y + 118, 260, 28), $"Every {minutes.Value} minute(s) of gameplay");
         if (GUI.Button(new Rect(x + 310, y + 116, 45, 30), "−")) minutes.Value = Math.Max(1, minutes.Value - 1);
         if (GUI.Button(new Rect(x + 365, y + 116, 45, 30), "+")) minutes.Value = Math.Min(30, minutes.Value + 1);
         afterEntry.Value = GUI.Toggle(new Rect(x + 20, y + 156, 400, 28), afterEntry.Value, "After entering a building");
@@ -304,11 +306,11 @@ public sealed class Plugin : BasePlugin
                 return;
             }
 
+            schedule.Advance(Time.unscaledDeltaTime, SafeForSnapshot(countDialogue: true));
             if (!SafeForSnapshot()) return;
 
             var persistence = SingletonComponent<SunshinePersistence>.Singleton;
             var app = SingletonScriptable<ApplicationManager>.Singleton;
-            schedule.Advance(Time.unscaledDeltaTime, true);
             if (!schedule.Due(minutes.Value, app.CurrentSceneProperties?.SceneId ?? "", Time.realtimeSinceStartup, true) ||
                 SunshinePersistence.saveCoroutine != null ||
                 !SunshinePersistence.CanSave()) return;
@@ -318,6 +320,8 @@ public sealed class Plugin : BasePlugin
             if (callback == null) throw new InvalidOperationException("Cannot create autosave callback.");
             startedAt = Time.realtimeSinceStartup;
             inFlight = true;
+            try { AutosaveIndicator.SetSaving(true); }
+            catch (Exception error) { Log.LogWarning("Autosave indicator unavailable: " + error.Message); }
             BuildLog.Info(Log, "Requesting native autosave.");
             threaded.Begin(persistence, callback);
         }

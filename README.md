@@ -1,4 +1,4 @@
-# Disco Autosave 1.6.8
+# Disco Autosave 1.6.9
 
 Slim builds are the default. Debug builds retain optional profiling; native comparison
 dumps default to off (`NativeComparisonSaves=0`) because they cause extra hitches.
@@ -52,6 +52,9 @@ Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 791
   hint is hidden; controller selection still works.
 
 ## Saving
+The interval counts gameplay including dialogue, but not menus/loading. If due
+during dialogue, autosaving waits until safe gameplay resumes. Successful autosaves
+(including area-change saves) reset the interval.
 Dialogue preparation runs across frames; state capture stays on the main thread.
 Preparation overlaps the screenshot wait, retaining the same slice budget. Thumbnail
 encoding and final capture stay on separate frames from preparation slices.

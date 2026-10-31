@@ -13,7 +13,6 @@ internal static class AutosaveIndicator
     internal static void SetSaving(bool value)
     {
         if (saving == value) return;
-        saving = value;
         if (value) Show();
         else Hide();
     }
@@ -66,6 +65,7 @@ internal static class AutosaveIndicator
         }
         icon!.sprite = sprite;
         root!.SetActive(true);
+        saving = true;
     }
 
     internal static void Hide()
