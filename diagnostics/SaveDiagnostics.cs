@@ -12,7 +12,6 @@ internal static class SaveDiagnostics
 {
     private sealed class Metric
     {
-        internal bool TransitionOnly;
         internal int Count;
         internal double Total, Max;
         internal void Add(double ms) { lock (this) { Count++; Total += ms; Max = Math.Max(Max, ms); } }
@@ -26,7 +25,7 @@ internal static class SaveDiagnostics
     private static readonly HashSet<MethodBase> contexts = new();
     private static int causeCount;
     [ThreadStatic] private static Stack<MethodBase>? scopes;
-    private readonly record struct CallState(long Started, bool Scoped, string Caller, int TransitionState);
+    private readonly record struct CallState(long Started, bool Scoped, string Caller, int TransitionState, string Label);
     private static readonly List<(string Name, double Ms, long Bytes, int Frame)> stages = new(32);
     private static readonly List<string> dialogueCopies = new(5);
     private static readonly Metric native = new();
@@ -90,7 +89,7 @@ internal static class SaveDiagnostics
                     type.Name.Contains("LoadSceneCoR") || type.Name.Contains("LoadCoR") || type.Name.Contains("SaveCoR"))
                     HookContext(harmony, AccessTools.Method(type, "MoveNext"));
         log.LogInfo("GC caller contexts installed: " + string.Join("; ", contexts.Select(m => names[m])));
-        log.LogWarning("Additional transition hooks disabled for crash isolation; existing save/GC diagnostics remain enabled.");
+        TransitionTimings.Install(log);
         log.LogInfo("Save diagnostics enabled; optimized Release code, unchanged save algorithm. Profiles include 12 s after the callback; wait 15 s after the last save before requesting logs.");
     }
 
@@ -101,12 +100,12 @@ internal static class SaveDiagnostics
         Hook(harmony, method);
     }
 
-    internal static void Hook(Harmony harmony, MethodBase method, bool transitionOnly = false)
+    private static void Hook(Harmony harmony, MethodBase method)
     {
         if (methods.ContainsKey(method)) return;
         try
         {
-            methods.TryAdd(method, new Metric { TransitionOnly = transitionOnly });
+            methods.TryAdd(method, new Metric());
             names[method] = method.DeclaringType?.FullName + "." + method.Name;
             harmony.Patch(method, prefix: new HarmonyMethod(typeof(SaveDiagnostics), nameof(Enter)),
                 finalizer: new HarmonyMethod(typeof(SaveDiagnostics), nameof(Exit)));
@@ -129,8 +128,8 @@ internal static class SaveDiagnostics
     private static void Enter(MethodBase __originalMethod, object? __instance, out CallState __state)
     {
         __state = default;
+        TransitionTimings.Enter(__instance);
         if (!active) return;
-        if (methods.TryGetValue(__originalMethod, out var metric) && metric.TransitionOnly && !TransitionTimings.InTransition) return;
         if (__originalMethod.DeclaringType == typeof(Lua) &&
             (Environment.CurrentManagedThreadId != mainThread || preparationDepth == 0)) return;
         if (__originalMethod.Name == "PrepConversationSimStatusForRawData") preparationDepth++;
@@ -146,19 +145,23 @@ internal static class SaveDiagnostics
             FortressOccident.SceneTransitionManager._UnloadScenesCoR_d__38 unload => unload.__1__state,
             _ => -1
         };
-        __state = new(Stopwatch.GetTimestamp(), scoped, caller, transitionState);
+        __state = new(Stopwatch.GetTimestamp(), scoped, caller, transitionState, TransitionTimings.Label(__instance));
     }
 
-    private static Exception? Exit(MethodBase __originalMethod, CallState __state, Exception? __exception)
+    private static Exception? Exit(MethodBase __originalMethod, object? __instance, CallState __state, Exception? __exception)
     {
-        if (__state.Started == 0) return __exception;
+        if (__state.Started == 0)
+        {
+            TransitionTimings.Exit(__instance, __exception);
+            return __exception;
+        }
         if (__state.Scoped) scopes!.Pop();
         double ms = Elapsed(__state.Started);
         if (methods.TryGetValue(__originalMethod, out var metric)) metric.Add(ms);
         if (__originalMethod.Name == "PrepConversationSimStatusForRawData") preparationDepth--;
         if (__originalMethod.DeclaringType != typeof(Lua) &&
             (__originalMethod.DeclaringType != typeof(PersistentDataManager) || ms >= 2))
-            HitchTrace.Add(names[__originalMethod] + (__state.TransitionState >= 0 ? " [state=" + __state.TransitionState + "]" : "") +
+            HitchTrace.Add(names[__originalMethod] + __state.Label + (__state.TransitionState >= 0 ? " [state=" + __state.TransitionState + "]" : "") +
                 (__originalMethod.DeclaringType == typeof(Il2CppSystem.GC) ? " <- " + __state.Caller : ""),
                 __state.Started, Stopwatch.GetTimestamp());
         if ((__originalMethod.DeclaringType == typeof(Il2CppSystem.GC) && ms >= 5) ||
@@ -167,6 +170,7 @@ internal static class SaveDiagnostics
                 causes.Enqueue($"{names[__originalMethod]}={ms:F2} ms; caller={__state.Caller}; " +
                     (complete ? $"after-callback={Elapsed(completedAt):F1} ms" : "before callback"));
         if (Environment.CurrentManagedThreadId == mainThread) Work(__originalMethod.Name);
+        TransitionTimings.Exit(__instance, __exception);
         return __exception;
     }
 
@@ -181,7 +185,6 @@ internal static class SaveDiagnostics
         stages.Clear();
         dialogueCopies.Clear();
         SaveInternals.Reset();
-        TransitionTimings.Reset();
         native.Reset();
         foreach (var metric in methods.Values) metric.Reset();
         preparationDepth = 0;
