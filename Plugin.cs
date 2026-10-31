@@ -14,7 +14,7 @@ using NotificationSystem;
 namespace DiscoAutosave;
 
 #if DISCO_DIAGNOSTICS
-[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.7-debug.1")]
+[BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.7-debug.2")]
 #else
 [BepInPlugin("local.disco.autosave", "Disco Autosave", "1.6.7")]
 #endif

@@ -90,7 +90,7 @@ internal static class SaveDiagnostics
                     type.Name.Contains("LoadSceneCoR") || type.Name.Contains("LoadCoR") || type.Name.Contains("SaveCoR"))
                     HookContext(harmony, AccessTools.Method(type, "MoveNext"));
         log.LogInfo("GC caller contexts installed: " + string.Join("; ", contexts.Select(m => names[m])));
-        TransitionTimings.Install(harmony, log);
+        log.LogWarning("Additional transition hooks disabled for crash isolation; existing save/GC diagnostics remain enabled.");
         log.LogInfo("Save diagnostics enabled; optimized Release code, unchanged save algorithm. Profiles include 12 s after the callback; wait 15 s after the last save before requesting logs.");
     }
 
