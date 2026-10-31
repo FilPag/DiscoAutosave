@@ -103,13 +103,7 @@ public sealed class Plugin : BasePlugin
         BuildLog.Info(Log, "Autosave loaded. F8: settings. Top-left main-menu hover control hidden; Esc still opens the menu.");
     }
 
-    private static bool QuietAutosave(NotificationType notificationType)
-    {
-        if (notificationType != NotificationType.AutosaveComplete) return true;
-        try { AutosaveIndicator.Show(); }
-        catch (Exception error) { Instance.Log.LogWarning("Autosave indicator unavailable: " + error.Message); }
-        return false;
-    }
+    private static bool QuietAutosave(NotificationType notificationType) => notificationType != NotificationType.AutosaveComplete;
 
     private bool SafeForSnapshot()
     {
@@ -189,7 +183,7 @@ public sealed class Plugin : BasePlugin
     internal void DrawMenu()
     {
         if (!menuVisible) return;
-        float scale = Mathf.Min(1.6f, (Screen.width - 32f) / 420f, (Screen.height - 32f) / 480f);
+        float scale = Mathf.Min(1.6f, (Screen.width - 20f) / 440f, (Screen.height - 20f) / 560f);
         var previousMatrix = GUI.matrix;
         try
         {
@@ -204,43 +198,53 @@ public sealed class Plugin : BasePlugin
 
     private void DrawMenuContents(float scale)
     {
-        float x = (Screen.width / scale - 420) / 2f;
-        float y = (Screen.height / scale - 480) / 2f;
-        GUI.Box(new Rect(x, y, 420, 480), "Disco Autosave — F8 to close");
-        enabled.Value = GUI.Toggle(new Rect(x + 20, y + 40, 380, 28), enabled.Value, "Enable autosave");
-        GUI.Label(new Rect(x + 20, y + 82, 260, 28), $"Interval: {minutes.Value} minute(s)");
-        if (GUI.Button(new Rect(x + 290, y + 80, 45, 30), "−")) minutes.Value = Math.Max(1, minutes.Value - 1);
-        if (GUI.Button(new Rect(x + 345, y + 80, 45, 30), "+")) minutes.Value = Math.Min(30, minutes.Value + 1);
-        afterEntry.Value = GUI.Toggle(new Rect(x + 20, y + 125, 380, 28), afterEntry.Value, "Save after entering buildings");
-        afterExit.Value = GUI.Toggle(new Rect(x + 20, y + 160, 380, 28), afterExit.Value, "Save after exiting buildings");
-        afterOutdoor.Value = GUI.Toggle(new Rect(x + 20, y + 195, 380, 28), afterOutdoor.Value, "Save after outdoor area changes");
+        float x = (Screen.width / scale - 440) / 2f;
+        float y = (Screen.height / scale - 560) / 2f;
+        var panel = new Rect(x, y, 440, 560);
+        var previousColor = GUI.color;
+        try
+        {
+            GUI.color = new Color(0.06f, 0.06f, 0.07f, 0.97f);
+            GUI.DrawTexture(panel, Texture2D.whiteTexture);
+        }
+        finally { GUI.color = previousColor; }
+        GUI.Box(panel, "Disco Autosave — Settings");
+        GUI.Label(new Rect(x + 20, y + 48, 400, 28), "AUTOSAVE");
+        enabled.Value = GUI.Toggle(new Rect(x + 20, y + 80, 400, 28), enabled.Value, "Enable autosave");
+        GUI.Label(new Rect(x + 20, y + 118, 260, 28), $"Every {minutes.Value} minute(s) of exploration");
+        if (GUI.Button(new Rect(x + 310, y + 116, 45, 30), "−")) minutes.Value = Math.Max(1, minutes.Value - 1);
+        if (GUI.Button(new Rect(x + 365, y + 116, 45, 30), "+")) minutes.Value = Math.Min(30, minutes.Value + 1);
+        afterEntry.Value = GUI.Toggle(new Rect(x + 20, y + 156, 400, 28), afterEntry.Value, "After entering a building");
+        afterExit.Value = GUI.Toggle(new Rect(x + 20, y + 190, 400, 28), afterExit.Value, "After leaving a building");
+        afterOutdoor.Value = GUI.Toggle(new Rect(x + 20, y + 224, 400, 28), afterOutdoor.Value, "After changing outdoor areas");
+        GUI.Label(new Rect(x + 20, y + 270, 400, 28), "DISPLAY & CAMERA");
         bool previousSmoothing = smoothCamera.Value;
-        smoothCamera.Value = GUI.Toggle(new Rect(x + 20, y + 235, 380, 28), smoothCamera.Value, "Smooth camera / party motion");
+        smoothCamera.Value = GUI.Toggle(new Rect(x + 20, y + 300, 400, 28), smoothCamera.Value, "Smooth camera / party motion");
         if (previousSmoothing && !smoothCamera.Value) smoothMotion.Restore();
         bool previousVSync = vSync.Value;
-        vSync.Value = GUI.Toggle(new Rect(x + 20, y + 275, 380, 28), vSync.Value, "VSync");
+        vSync.Value = GUI.Toggle(new Rect(x + 20, y + 334, 400, 28), vSync.Value, "VSync");
         if (previousVSync != vSync.Value) ApplyFpsLimit();
-        GUI.Label(new Rect(x + 20, y + 320, 220, 28), "FPS cap (0 = no cap)");
+        GUI.Label(new Rect(x + 20, y + 376, 220, 28), "FPS cap (0 = unlimited)");
         bool controlsEnabled = GUI.enabled;
         try
         {
             GUI.enabled = controlsEnabled && QualitySettings.vSyncCount == 0;
-            fpsInput = GUI.TextField(new Rect(x + 240, y + 318, 95, 30), fpsInput, 10);
+            fpsInput = GUI.TextField(new Rect(x + 260, y + 374, 95, 30), fpsInput, 10);
             bool valid = int.TryParse(fpsInput, System.Globalization.NumberStyles.None,
                 System.Globalization.CultureInfo.InvariantCulture, out int value) && value >= 0;
             GUI.enabled = GUI.enabled && valid;
-            if (GUI.Button(new Rect(x + 345, y + 318, 45, 30), "Set"))
+            if (GUI.Button(new Rect(x + 365, y + 374, 45, 30), "Set"))
             {
                 fpsLimit.Value = value;
                 ApplyFpsLimit();
             }
         }
         finally { GUI.enabled = controlsEnabled; }
-        GUI.Label(new Rect(x + 20, y + 355, 380, 28), QualitySettings.vSyncCount > 0
-            ? "VSync is ON — turn it off above to use this cap."
-            : $"Active cap: {(fpsLimit.Value == 0 ? "none" : fpsLimit.Value.ToString())}. External caps still apply.");
-        GUI.Label(new Rect(x + 20, y + 395, 380, 28), stopped ? "Autosave stopped — see log; restart game." : "Settings saved automatically. Game paused.");
-        if (GUI.Button(new Rect(x + 150, y + 435, 120, 30), "Close")) ToggleMenu();
+        GUI.Label(new Rect(x + 20, y + 412, 400, 28), QualitySettings.vSyncCount > 0
+            ? "Turn VSync off to use the FPS cap."
+            : $"Active cap: {(fpsLimit.Value == 0 ? "unlimited" : fpsLimit.Value.ToString())}. External caps still apply.");
+        GUI.Label(new Rect(x + 20, y + 460, 400, 28), stopped ? "Autosave stopped — see log; restart game." : "Game paused · Settings saved automatically");
+        if (GUI.Button(new Rect(x + 130, y + 504, 180, 32), "Close (F8 / Esc)")) ToggleMenu();
     }
 
     private void ApplyFpsLimit()
@@ -258,7 +262,8 @@ public sealed class Plugin : BasePlugin
         SaveDiagnostics.Tick();
 #endif
         ApplyFpsLimit();
-        AutosaveIndicator.Tick();
+        try { AutosaveIndicator.SetSaving(inFlight && !stopped); }
+        catch (Exception error) { Log.LogWarning("Autosave indicator unavailable: " + error.Message); }
         if (Input.GetKeyDown(KeyCode.F8) || (menuVisible && Input.GetKeyDown(KeyCode.Escape))) ToggleMenu();
         try { threaded.Poll(threaded.ReadyToAdvance && SafeForSnapshot()); }
         catch (Exception error)
@@ -314,6 +319,7 @@ public sealed class Plugin : BasePlugin
     private void AutosaveCompleted()
     {
         inFlight = false;
+        AutosaveIndicator.Hide();
         try
         {
             threaded.CheckWrittenSave();

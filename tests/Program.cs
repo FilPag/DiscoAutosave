@@ -6,6 +6,13 @@ void Check(bool result) { if (!result) throw new Exception("Check failed"); }
 SnapshotCopyTests.Run();
 DialogueCacheTests.Run();
 ObjectIndexTests.Run();
+foreach (int fps in new[] { 30, 40, 60, 90, 120, 144, 240 })
+    Check(Math.Abs(SavePreparationBudget.Milliseconds(1.0 / fps) * fps - 100.0) < 0.001);
+Check(SavePreparationBudget.Milliseconds(1.0) == 4.0);
+Check(SavePreparationBudget.Milliseconds(0) == 0.25);
+Check(SavePreparationBudget.Milliseconds(double.NaN) == 0.25);
+Check(SavePreparationBudget.Milliseconds(double.PositiveInfinity) == 0.25);
+Console.WriteLine("PASS: equal preparation budget per second at 30–240 FPS; stalls and invalid frame times bounded.");
 var schedule = new SaveSchedule();
 for (int i = 0; i < 299; i++) schedule.Advance(1, true);
 schedule.Advance(60, false);

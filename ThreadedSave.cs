@@ -35,9 +35,7 @@ internal sealed class ThreadedSave
     private int beganFrame;
     private double captureMs;
     internal bool Preparing { get; private set; }
-    internal bool ReadyToAdvance => Preparing && (waitingForCapture
-        ? Time.frameCount - beganFrame >= 2 && Time.realtimeSinceStartup - beganAt >= 0.2f
-        : zip != null || worker?.IsCompleted == true);
+    internal bool ReadyToAdvance => Preparing && (waitingForCapture || zip != null || worker?.IsCompleted == true);
 
     internal ThreadedSave(Harmony harmony, ManualLogSource log, ConfigEntry<bool> deferGc)
     {
@@ -147,8 +145,14 @@ internal sealed class ThreadedSave
 
     private void AdvanceCapture()
     {
-        if (thumbnail == null) { EncodeThumbnail(); return; }
+        if (thumbnail == null && Time.frameCount - beganFrame >= 2 &&
+            Time.realtimeSinceStartup - beganAt >= 0.2f && SunshinePersistenceThumbnail.ScreenshotTexture)
+        {
+            EncodeThumbnail();
+            return;
+        }
         if (!captureReady) { captureReady = dialogue.AdvancePreparation(); return; }
+        if (thumbnail == null) return;
 #if DISCO_DIAGNOSTICS
         SaveDiagnostics.StartCapture();
 #endif

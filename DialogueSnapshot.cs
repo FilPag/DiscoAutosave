@@ -17,6 +17,7 @@ internal sealed class DialogueSnapshot
 
     internal bool AdvancePreparation()
     {
+        double budgetMs = SavePreparationBudget.Milliseconds(UnityEngine.Time.unscaledDeltaTime);
         if (prepared)
         {
             if (!cachePrepared)
@@ -25,8 +26,7 @@ internal sealed class DialogueSnapshot
 #if DISCO_DIAGNOSTICS
                 SaveDiagnostics.RestartStage();
 #endif
-                cachePrepared = reader.WarmConversation(GetTable("Conversation"),
-                    Math.Clamp(UnityEngine.Time.unscaledDeltaTime * 200.0, 1.0, 5.0));
+                cachePrepared = reader.WarmConversation(GetTable("Conversation"), budgetMs);
                 double warmMs = ElapsedMs(warm);
                 totalMs += warmMs;
                 maxSliceMs = Math.Max(maxSliceMs, warmMs);
@@ -40,12 +40,11 @@ internal sealed class DialogueSnapshot
         preparation ??= PersistentDataManager.PrepSimStatusForRawDataAsync(GetTable("Conversation"))
             .Cast<PersistentDataManager._PrepSimStatusForRawDataAsync_d__67>();
         int previousBatch = PersistentDataManager.asyncDialogueEntryBatchSize;
-        double budgetMs = Math.Clamp(UnityEngine.Time.unscaledDeltaTime * 200.0, 1.0, 5.0);
         long timer = Stopwatch.GetTimestamp();
         try
         {
             PersistentDataManager.asyncDialogueEntryBatchSize = 16;
-            for (int steps = 0; steps < 64; steps++)
+            while (true)
             {
                 if (!preparation.MoveNext())
                 {

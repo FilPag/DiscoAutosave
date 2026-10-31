@@ -2,8 +2,8 @@
 
 Slim builds are the default. Debug builds retain optional profiling; native comparison
 dumps default to off (`NativeComparisonSaves=0`) because they cause extra hitches.
-The autosave completion symbol appears silently in the top-right for two seconds,
-with an "Autosave complete" caption. The icon is 200×200 at 1440p and scales with screen height.
+The silent autosave symbol appears in the top-right while saving, with an "Autosaving…"
+caption, and disappears on completion. The icon is 150×150 at 1440p and scales with screen height.
 Version 1.6.8 still needs runtime testing of the new icon.
 
 ## Install (Windows, Linux/Proton, Steam Deck)
@@ -46,14 +46,18 @@ Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 755
 - **F8:** autosave interval (1–30 minutes), area-change triggers, camera/party
   smoothing, VSync override and integer FPS cap (0 = unlimited).
 - FPS cap requires VSync off; external limits still apply.
-- Autosave uses a small, silent top-right icon; the top-left menu control is hidden. Esc still works;
+- Autosave uses a silent top-right progress icon; the top-left menu control is hidden. Esc still works;
   quicksave/error notifications and controller hints are unchanged.
 
 ## Saving
 Dialogue preparation runs across frames; state capture stays on the main thread.
+Preparation overlaps the screenshot wait, retaining the same slice budget. Thumbnail
+encoding and final capture stay on separate frames from preparation slices.
 Area-change saves start as soon as gameplay is safe, without an extra settling delay.
-Preparation uses a soft 1–5 ms slice (20% of frame duration), targeting a save
-within roughly 2 seconds under measured conditions, not a hard deadline.
+Preparation uses 10% of the previous unscaled frame duration (0.25–4 ms), giving
+roughly equal work per second at 30–240 FPS. The ceiling limits work after a stalled
+frame. Budgets are soft: individual native batches/cache blocks can overrun them;
+final capture is not sliced, and unchanged FPS or completion time is not guaranteed.
 A worker encodes detached data directly into a buffered ZIP. Native file handling
 and rotation remain in use. Capture is blocked during dialogue/loading/scripted
 movement. Errors stop autosaving; there is no native exporter fallback or runtime

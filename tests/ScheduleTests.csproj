@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Remove="DiagnosticsProgram.cs" />
     <Compile Include="../SaveSchedule.cs" Link="SaveSchedule.cs" />
+    <Compile Include="../SavePreparationBudget.cs" Link="SavePreparationBudget.cs" />
     <Compile Include="../SnapshotZip.cs" Link="SnapshotZip.cs" />
     <Compile Include="../FlatDialogueSnapshot.cs" Link="FlatDialogueSnapshot.cs" />
     <Compile Include="../NativeSnapshotCopier.cs" Link="NativeSnapshotCopier.cs" />
