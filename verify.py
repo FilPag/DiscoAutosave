@@ -58,7 +58,7 @@ def trace_summary(path):
         print(f"Trace truncated: {data['DroppedSpans']} spans and {data['DroppedFrames']} frames dropped.")
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--log', type=Path, default=Path('/path/to/Disco Elysium/BepInEx/LogOutput.log'))
+parser.add_argument('--log', type=Path, help='Path to BepInEx/LogOutput.log.')
 parser.add_argument('--profiles', type=int, choices=range(1, 21), default=1, metavar='1..20')
 parser.add_argument('--trace', type=Path, help='Analyze one detailed JSON trace without reading the game log.')
 args = parser.parse_args()
@@ -66,6 +66,8 @@ if args.trace:
     trace_summary(args.trace)
     raise SystemExit(0)
 log = args.log
+if log is None:
+    parser.error('--log is required unless --trace is supplied')
 text = log.read_text(errors='replace')
 versions = re.findall(r'Loading \[Disco Autosave ([^\]]+)\]', text)
 print('Loaded version:', versions[-1] if versions else 'not found')

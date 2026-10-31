@@ -17,7 +17,6 @@ Requires the Windows version of **Disco Elysium: The Final Cut**; native macOS i
 6. Start the game. **F8** opens settings; on Steam Deck, map a controller button to F8. Configuration is saved in `BepInEx/config/local.disco.autosave.cfg`.
 
 To update, close the game and replace only the mod DLL; keep your config. To uninstall the mod, remove its plugin folder.
-The current `install.py` uses developer-machine paths; use these manual steps on other machines.
 
 Per-save receiver/sequence discovery uses scene-load, clone and AddComponent
 tracking. Inactive/disabled objects
@@ -46,8 +45,11 @@ Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 791
 - **F8:** autosave interval (1–30 minutes), area-change triggers, camera/party
   smoothing, VSync override and integer FPS cap (0 = unlimited).
 - FPS cap requires VSync off; external limits still apply.
+- Display settings apply once at startup and when changed in the mod/config, not
+  every frame. Later changes made by the game are left alone.
 - Autosave uses a silent top-right progress icon; the top-left menu control is hidden. Esc still works;
-  quicksave/error notifications and controller hints are unchanged.
+  quicksave/error notifications are unchanged. The overlapping menu "Select (A)"
+  hint is hidden; controller selection still works.
 
 ## Saving
 Dialogue preparation runs across frames; state capture stays on the main thread.
@@ -90,20 +92,19 @@ When profiling, wait 15 seconds after the last test save before requesting a log
 
 ## Build and check
 ```sh
-dotnet build -c Release
+dotnet build -c Release -p:GameDir="/path/to/Disco Elysium"
 dotnet run --project tests/ScheduleTests.csproj
 # Optional byte-exact native fixture check:
 dotnet run --project tests/ScheduleTests.csproj -- /path/to/save.ntwtf.zip
 # Read the game log only with user permission:
-python3 verify.py
+python3 verify.py --log "/path/to/Disco Elysium/BepInEx/LogOutput.log"
 ```
 
 One-command builds: `python3 build.py debug` (optimized diagnostic DLL) or
 `python3 build.py release` (no diagnostic code). Outputs go to `artifacts/debug/`
 and `artifacts/release/`; neither command installs anything. Diagnostic details:
 [diagnostics/README.md](diagnostics/README.md).
-With installation permission and the game closed: `python3 install.py debug`
-(or `release`). This backs up the installed DLL/config/saves before replacement.
+Set the `GameDir` environment variable to your game folder when using `build.py`.
 
 Install `bin/Release/net6.0/DiscoAutosave.dll` into game
 `BepInEx/plugins/DiscoAutosave/` while the game is closed. Configuration:
@@ -111,4 +112,3 @@ Install `bin/Release/net6.0/DiscoAutosave.dll` into game
 Keep the original Disco QoL mod disabled.
 
 Older implementations and development history are retained in git, not source copies.
-Persistent rollback instructions: `/path/to/local-data`.

@@ -33,12 +33,14 @@ public sealed class Plugin : BasePlugin
     private bool inFlight;
     private bool stopped;
     private bool warned;
-    private HudMainMenuButtonTrigger? cornerMenu;
+    private GameObject? cornerMenu;
+    private GameObject? selectHint;
     private Il2CppSystem.Action? callback;
     private ThreadedSave threaded = null!;
     private ConfigEntry<bool> smoothCamera = null!;
     private ConfigEntry<int> fpsLimit = null!;
     private ConfigEntry<bool> vSync = null!;
+    private volatile bool displaySettingsPending = true;
     private SmoothPartyMotion smoothMotion = null!;
     private string fpsInput = "0";
     internal bool OwnsAutosave => enabled.Value && !stopped;
@@ -67,7 +69,9 @@ public sealed class Plugin : BasePlugin
         fpsLimit = Config.Bind("Display", "FpsLimit", 0,
             new ConfigDescription("FPS cap while VSync is off. 0 = no cap. External/driver caps can still limit FPS.",
                 new AcceptableValueRange<int>(0, int.MaxValue)));
-        vSync = Config.Bind("Display", "VSync", true, "Force VSync on/off; overrides the game's VSync setting.");
+        vSync = Config.Bind("Display", "VSync", true, "Apply VSync on/off at startup and when these display settings change; does not continuously override the game.");
+        fpsLimit.SettingChanged += DisplaySettingsChanged;
+        vSync.SettingChanged += DisplaySettingsChanged;
         fpsInput = fpsLimit.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         smoothMotion = new SmoothPartyMotion(harmony, smoothCamera, Log);
         harmony.Patch(AccessTools.Method(typeof(NotificationManager), "ShowNotification",
@@ -88,9 +92,11 @@ public sealed class Plugin : BasePlugin
                 new AcceptableValueRange<int>(0, 20))), Log);
         SaveDiagnostics.Install(harmony, Log);
 #endif
-        foreach (var method in new[] { "Start", "Update", "ShowHub", "ShowMenuButton" })
+        foreach (var method in new[] { "Start", "ShowHub", "ShowMenuButton" })
             harmony.Patch(AccessTools.Method(typeof(HudMainMenuButtonTrigger), method),
                 postfix: new HarmonyMethod(typeof(Plugin), nameof(HideMainMenuCorner)));
+        harmony.Patch(AccessTools.DeclaredMethod(typeof(MainMenuView), "Start"),
+            postfix: new HarmonyMethod(typeof(Plugin), nameof(HideSelectHint)));
         harmony.Patch(AccessTools.Method(typeof(ApplicationManager), "ChangeArea"),
             prefix: new HarmonyMethod(typeof(Plugin), nameof(BeforeChangeArea)));
         foreach (var target in new[] {
@@ -123,16 +129,26 @@ public sealed class Plugin : BasePlugin
 
     private static void HideMainMenuCorner(HudMainMenuButtonTrigger __instance)
     {
-        Instance.cornerMenu = __instance;
         var button = __instance.menuButton;
         if (!button) return;
         var container = button.transform.parent;
-        if (container && container.gameObject.activeSelf) container.gameObject.SetActive(false);
+        if (!container) return;
+        Instance.cornerMenu = container.gameObject;
+        Instance.HideCornerAfterAnimations();
     }
 
     internal void HideCornerAfterAnimations()
     {
-        if (cornerMenu) HideMainMenuCorner(cornerMenu!);
+        if (cornerMenu && cornerMenu!.activeSelf) cornerMenu.SetActive(false);
+        if (selectHint && selectHint!.activeSelf) selectHint.SetActive(false);
+    }
+
+    private static void HideSelectHint(MainMenuView __instance)
+    {
+        var prompt = __instance.selectOverlayPrompt;
+        if (!prompt) return;
+        Instance.selectHint = prompt.gameObject;
+        Instance.selectHint.SetActive(false);
     }
 
     private static void ResetSession()
@@ -221,9 +237,7 @@ public sealed class Plugin : BasePlugin
         bool previousSmoothing = smoothCamera.Value;
         smoothCamera.Value = GUI.Toggle(new Rect(x + 20, y + 300, 400, 28), smoothCamera.Value, "Smooth camera / party motion");
         if (previousSmoothing && !smoothCamera.Value) smoothMotion.Restore();
-        bool previousVSync = vSync.Value;
         vSync.Value = GUI.Toggle(new Rect(x + 20, y + 334, 400, 28), vSync.Value, "VSync");
-        if (previousVSync != vSync.Value) ApplyFpsLimit();
         GUI.Label(new Rect(x + 20, y + 376, 220, 28), "FPS cap (0 = unlimited)");
         bool controlsEnabled = GUI.enabled;
         try
@@ -234,20 +248,19 @@ public sealed class Plugin : BasePlugin
                 System.Globalization.CultureInfo.InvariantCulture, out int value) && value >= 0;
             GUI.enabled = GUI.enabled && valid;
             if (GUI.Button(new Rect(x + 365, y + 374, 45, 30), "Set"))
-            {
                 fpsLimit.Value = value;
-                ApplyFpsLimit();
-            }
         }
         finally { GUI.enabled = controlsEnabled; }
         GUI.Label(new Rect(x + 20, y + 412, 400, 28), QualitySettings.vSyncCount > 0
             ? "Turn VSync off to use the FPS cap."
-            : $"Active cap: {(fpsLimit.Value == 0 ? "unlimited" : fpsLimit.Value.ToString())}. External caps still apply.");
+            : $"Configured cap: {(fpsLimit.Value == 0 ? "unlimited" : fpsLimit.Value.ToString())}. External caps still apply.");
         GUI.Label(new Rect(x + 20, y + 460, 400, 28), stopped ? "Autosave stopped — see log; restart game." : "Game paused · Settings saved automatically");
         if (GUI.Button(new Rect(x + 130, y + 504, 180, 32), "Close (F8 / Esc)")) ToggleMenu();
     }
 
-    private void ApplyFpsLimit()
+    private void DisplaySettingsChanged(object? sender, EventArgs args) => displaySettingsPending = true;
+
+    private void ApplyDisplaySettings()
     {
         int syncInterval = vSync.Value ? 1 : 0;
         if (QualitySettings.vSyncCount != syncInterval) QualitySettings.vSyncCount = syncInterval;
@@ -261,7 +274,11 @@ public sealed class Plugin : BasePlugin
 #if DISCO_DIAGNOSTICS
         SaveDiagnostics.Tick();
 #endif
-        ApplyFpsLimit();
+        if (displaySettingsPending)
+        {
+            displaySettingsPending = false;
+            ApplyDisplaySettings();
+        }
         try { AutosaveIndicator.SetSaving(inFlight && !stopped); }
         catch (Exception error) { Log.LogWarning("Autosave indicator unavailable: " + error.Message); }
         if (Input.GetKeyDown(KeyCode.F8) || (menuVisible && Input.GetKeyDown(KeyCode.Escape))) ToggleMenu();

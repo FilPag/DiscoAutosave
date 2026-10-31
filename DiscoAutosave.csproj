@@ -6,7 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <SaveDiagnostics Condition="'$(SaveDiagnostics)' == ''">false</SaveDiagnostics>
     <SaveLogging Condition="'$(SaveLogging)' == ''">$(SaveDiagnostics)</SaveLogging>
-    <GameDir>/path/to/Disco Elysium</GameDir>
+    <PathMap>$(MSBuildProjectDirectory)=/src/DiscoAutosave</PathMap>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SaveDiagnostics)' == 'true'">
     <DefineConstants>$(DefineConstants);DISCO_DIAGNOSTICS</DefineConstants>

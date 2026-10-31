@@ -9,8 +9,8 @@ import subprocess
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('methods', nargs='+', help='Exact method name or namespace-qualified suffix from script.json.')
-parser.add_argument('--symbols', type=Path, default=Path('/path/to/tools/disco-dump/script.json'))
-parser.add_argument('--assembly', type=Path, default=Path('/path/to/Disco Elysium/GameAssembly.dll'))
+parser.add_argument('--symbols', type=Path, required=True)
+parser.add_argument('--assembly', type=Path, required=True)
 args = parser.parse_args()
 symbols = json.loads(args.symbols.read_text())
 names = {}
