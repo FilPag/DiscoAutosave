@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SaveDiagnostics Condition="'$(SaveDiagnostics)' == ''">true</SaveDiagnostics>
+    <SaveLogging Condition="'$(SaveLogging)' == ''">$(SaveDiagnostics)</SaveLogging>
+    <GameDir>/path/to/Disco Elysium</GameDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SaveDiagnostics)' == 'true'">
+    <DefineConstants>$(DefineConstants);DISCO_DIAGNOSTICS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SaveLogging)' == 'true'">
+    <DefineConstants>$(DefineConstants);DISCO_LOGS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="reference/**/*.cs" />
+    <Compile Remove="diagnostics/**/*.cs" Condition="'$(SaveDiagnostics)' != 'true'" />
+    <Reference Include="$(GameDir)/BepInEx/core/*.dll" Private="false" />
+    <Reference Include="$(GameDir)/BepInEx/interop/*.dll" Private="false" />
+  </ItemGroup>
+</Project>
