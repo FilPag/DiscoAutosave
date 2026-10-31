@@ -26,7 +26,7 @@ internal static class AutosaveIndicator
             canvas.sortingOrder = 100;
             var scaler = root.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280, 800);
+            scaler.referenceResolution = new Vector2(2560, 1440);
             scaler.matchWidthOrHeight = 1f;
             var child = new GameObject("Icon");
             child.AddComponent<RectTransform>();
@@ -36,8 +36,26 @@ internal static class AutosaveIndicator
             icon.preserveAspect = true;
             var rect = icon.rectTransform;
             rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(1, 1);
-            rect.anchoredPosition = new Vector2(-16, -16);
-            rect.sizeDelta = new Vector2(32, 32);
+            rect.anchoredPosition = new Vector2(-28, -28);
+            rect.sizeDelta = new Vector2(200, 200);
+
+            var caption = new GameObject("Caption");
+            caption.AddComponent<RectTransform>();
+            caption.transform.SetParent(root.transform, false);
+            var text = caption.AddComponent<Text>();
+            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.text = "Autosave complete";
+            text.fontSize = 20;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.color = Color.white;
+            text.raycastTarget = false;
+            var labelRect = text.rectTransform;
+            labelRect.anchorMin = labelRect.anchorMax = labelRect.pivot = new Vector2(1, 1);
+            labelRect.anchoredPosition = new Vector2(-28, -236);
+            labelRect.sizeDelta = new Vector2(200, 32);
+            var shadow = caption.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0, 0, 0, 0.8f);
+            shadow.effectDistance = new Vector2(1, -1);
         }
         icon!.sprite = sprite;
         root!.SetActive(true);

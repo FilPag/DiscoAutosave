@@ -5,15 +5,11 @@ public sealed class SaveSchedule
     private double elapsed;
     private string? destination;
     private double travelDeadline;
-    private double? arrivedAt;
     private bool arrivalPending;
-
-    public void Wait() => arrivedAt = null;
 
     public void CancelTravel()
     {
         destination = null;
-        arrivedAt = null;
         arrivalPending = false;
     }
 
@@ -26,7 +22,6 @@ public sealed class SaveSchedule
     {
         destination = scene;
         travelDeadline = now + 120;
-        arrivedAt = null;
         arrivalPending = false;
     }
 
@@ -37,18 +32,12 @@ public sealed class SaveSchedule
             if (now > travelDeadline)
             {
                 destination = null;
-                arrivedAt = null;
             }
             else if (eligible && scene == destination)
             {
-                arrivedAt ??= now;
-                if (now - arrivedAt.Value >= 2)
-                {
-                    arrivalPending = true;
-                    destination = null;
-                }
+                arrivalPending = true;
+                destination = null;
             }
-            else arrivedAt = null;
         }
         return eligible && (arrivalPending || elapsed >= minutes * 60);
     }

@@ -269,10 +269,7 @@ public sealed class Plugin : BasePlugin
             Log.LogError($"Background autosave stopped: {error}");
         }
         if (menuVisible || stopped || !enabled.Value || threaded.QuickSaveInProgress)
-        {
-            schedule.Wait();
             return;
-        }
         try
         {
             if (inFlight)
@@ -285,11 +282,7 @@ public sealed class Plugin : BasePlugin
                 return;
             }
 
-            if (!SafeForSnapshot())
-            {
-                schedule.Wait();
-                return;
-            }
+            if (!SafeForSnapshot()) return;
 
             var persistence = SingletonComponent<SunshinePersistence>.Singleton;
             var app = SingletonScriptable<ApplicationManager>.Singleton;

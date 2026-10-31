@@ -2,8 +2,22 @@
 
 Slim builds are the default. Debug builds retain optional profiling; native comparison
 dumps default to off (`NativeComparisonSaves=0`) because they cause extra hitches.
-The autosave completion symbol appears silently in the top-right for two seconds.
-Version 1.6.8 is not yet runtime-tested or installed.
+The autosave completion symbol appears silently in the top-right for two seconds,
+with an "Autosave complete" caption. The icon is 200×200 at 1440p and scales with screen height.
+Version 1.6.8 still needs runtime testing of the new icon.
+
+## Install (Windows, Linux/Proton, Steam Deck)
+Requires the Windows version of **Disco Elysium: The Final Cut**; native macOS is not supported.
+
+1. Close the game and back up your saves. In Steam, use **Manage → Browse local files** to find the folder containing `disco.exe`.
+2. Download **BepInEx Unity IL2CPP, Windows x64, build 755** from the [official builds page](https://builds.bepinex.dev/projects/bepinex_be). This is the verified loader version; newer builds are not yet verified. Extract it beside `disco.exe`, not into a subfolder. Back up an existing loader before replacing it.
+3. **Linux/Steam Deck:** use Proton and set Steam launch options to `WINEDLLOVERRIDES="winhttp=n,b" %command%`. Install files in Desktop Mode on Steam Deck. Windows needs no launch option.
+4. Launch the game once to initialize BepInEx (the first launch can take longer), then close it.
+5. Copy the release `DiscoAutosave.dll` into `BepInEx/plugins/DiscoAutosave/`, creating the folder if needed. Use `artifacts/release/DiscoAutosave.dll` from a release build; the source checkout alone is not an installable mod. Disable the original Disco QoL mod.
+6. Start the game. **F8** opens settings; on Steam Deck, map a controller button to F8. Configuration is saved in `BepInEx/config/local.disco.autosave.cfg`.
+
+To update, close the game and replace only the mod DLL; keep your config. To uninstall the mod, remove its plugin folder.
+The current `install.py` uses developer-machine paths; use these manual steps on other machines.
 
 Per-save receiver/sequence discovery uses scene-load, clone and AddComponent
 tracking. Inactive/disabled objects
@@ -37,6 +51,7 @@ Disco Elysium: The Final Cut on Windows/Proton, using BepInEx 6 IL2CPP build 755
 
 ## Saving
 Dialogue preparation runs across frames; state capture stays on the main thread.
+Area-change saves start as soon as gameplay is safe, without an extra settling delay.
 Preparation uses a soft 1–5 ms slice (20% of frame duration), targeting a save
 within roughly 2 seconds under measured conditions, not a hard deadline.
 A worker encodes detached data directly into a buffered ZIP. Native file handling
